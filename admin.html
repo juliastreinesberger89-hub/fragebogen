@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Einsendungen | Soulful Ease &amp; Energy</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+:root{--head:#a97b4f;--bg:#FAF3F1;--ink:#1a1415;--soft:#6f6265;--line:#e4d3cf;--accent:#BE327B;--tint:#f6e3ea;--serif:'Playfair Display',Georgia,serif;--sans:'Nunito Sans','Avenir Next',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-weight:400;font-size:16px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding:20px 16px 80px}
+h1,h2,h3{font-family:var(--serif);font-weight:400;color:var(--head);margin:0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:600;padding:9px 18px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+.btn:hover{background:var(--ink);color:#fff}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{border-color:#b0233f;color:#b0233f}.btn.danger:hover{background:#b0233f;color:#fff}
+.card{background:#fff;border:1px solid var(--line);padding:22px;margin-top:16px}
+input{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--line);margin-top:6px}
+label{display:block;margin-top:14px;font-weight:600}
+table{width:100%;border-collapse:collapse;background:#fff}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;color:var(--soft);text-transform:uppercase;letter-spacing:.06em}
+tr.row{cursor:pointer}tr.row:hover{background:var(--tint)}
+.tag{display:inline-block;padding:2px 9px;border:1px solid var(--line);font-size:13px;background:#fff}
+.tag.neu{background:var(--accent);border-color:var(--accent);color:#fff}
+.tag.flag{border-color:#b0233f;color:#b0233f}
+.sec{margin-top:26px;padding-top:14px;border-top:1px solid var(--line)}
+.sec h2{font-size:22px}
+.q{margin-top:14px}.q .l{font-weight:600}.q .v{white-space:pre-wrap}
+.q ul{margin:4px 0 0 18px;padding:0}
+.files a{display:inline-block;margin:4px 10px 0 0}
+.msg{color:#b0233f;margin-top:10px}
+.muted{color:var(--soft)}
+.hide{display:none!important}
+@media print{
+  body{background:#fff}.no-print{display:none!important}.card{border:0;padding:0}
+  .wrap{max-width:none;padding:0}.sec{break-inside:avoid-page}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top no-print">
+    <h1>Einsendungen</h1>
+    <div><span class="muted" id="who"></span> <button class="btn hide" id="logout">Abmelden</button></div>
+  </div>
+
+  <div class="card" id="loginBox">
+    <h2>Anmelden</h2>
+    <label>E-Mail<input id="em" type="email" autocomplete="username"></label>
+    <label>Passwort<input id="pw" type="password" autocomplete="current-password"></label>
+    <p><button class="btn primary" id="loginBtn">Anmelden</button></p>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+
+  <div id="listBox" class="hide">
+    <p class="muted no-print" id="count"></p>
+    <table><thead><tr><th>Eingegangen</th><th>Name</th><th>E-Mail</th><th>Themen</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+  </div>
+
+  <div id="detailBox" class="hide">
+    <p class="no-print"><button class="btn" id="back">← Zur Liste</button></p>
+    <div class="card" id="detail"></div>
+  </div>
+</div>
+
+<script>
+const CFG = {"url":"https://ugentzokepauonaxxgyg.supabase.co","anonKey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnZW50em9rZXBhdW9uYXh4Z3lnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDc0NzMsImV4cCI6MjEwODE4MzQ3M30.ILMWa7p2TGAh8-b9-M9FrOQr536SJgzzvvOReUw6ECQ"};
+const $ = id => document.getElementById(id);
+const el = (t, a = {}, k = []) => { const e = document.createElement(t); for (const x in a) { if (x === 'class') e.className = a[x]; else if (x === 'html') e.innerHTML = a[x]; else if (x.startsWith('on')) e.addEventListener(x.slice(2), a[x]); else e.setAttribute(x, a[x]); } [].concat(k).forEach(c => c != null && e.append(c.nodeType ? c : document.createTextNode(c))); return e; };
+let sess = null; try { sess = JSON.parse(sessionStorage.getItem('se_admin') || 'null'); } catch (e) {}
+const keep = v => { try { v ? sessionStorage.setItem('se_admin', JSON.stringify(v)) : sessionStorage.removeItem('se_admin'); } catch (e) {} };
+const fmt = d => new Date(d).toLocaleString('de-AT', { dateStyle: 'medium', timeStyle: 'short' });
+
+async function api(path, opt = {}, retry = true) {
+  const r = await fetch(CFG.url + path, Object.assign({}, opt, { headers: Object.assign({ apikey: CFG.anonKey, Authorization: 'Bearer ' + (sess ? sess.access_token : CFG.anonKey), 'Content-Type': 'application/json' }, opt.headers || {}) }));
+  if ((r.status === 401 || r.status === 403) && sess && sess.refresh_token && retry) { if (await refresh()) return api(path, opt, false); }
+  return r;
+}
+async function refresh() {
+  const r = await fetch(CFG.url + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: { apikey: CFG.anonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: sess.refresh_token }) });
+  if (!r.ok) { logout(); return false; } sess = await r.json(); keep(sess); return true;
+}
+$('loginBtn').onclick = async () => {
+  $('loginMsg').textContent = '';
+  const r = await fetch(CFG.url + '/auth/v1/token?grant_type=password', { method: 'POST', headers: { apikey: CFG.anonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: $('em').value.trim(), password: $('pw').value }) });
+  if (!r.ok) { $('loginMsg').textContent = 'Anmeldung nicht möglich. Bitte E-Mail und Passwort prüfen.'; return; }
+  sess = await r.json(); keep(sess); $('pw').value = ''; start();
+};
+$('pw').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
+function logout() { sess = null; keep(null); $('loginBox').classList.remove('hide'); $('listBox').classList.add('hide'); $('detailBox').classList.add('hide'); $('logout').classList.add('hide'); $('who').textContent = ''; }
+$('logout').onclick = logout;
+$('back').onclick = () => { $('detailBox').classList.add('hide'); loadList(); };
+
+async function start() {
+  if (!sess) return;
+  $('loginBox').classList.add('hide'); $('logout').classList.remove('hide'); $('who').textContent = (sess.user && sess.user.email) || '';
+  loadList();
+}
+async function loadList() {
+  $('listBox').classList.remove('hide'); $('detailBox').classList.add('hide');
+  const r = await api('/rest/v1/submissions?select=id,created_at,name,email,themen,flagged,status&order=created_at.desc&limit=500');
+  if (!r.ok) { logout(); $('loginMsg').textContent = 'Bitte neu anmelden.'; return; }
+  const list = await r.json(); const tb = $('rows'); tb.innerHTML = '';
+  $('count').textContent = list.length + ' Einsendung' + (list.length === 1 ? '' : 'en') + ' · ' + list.filter(x => x.status === 'neu').length + ' neu';
+  list.forEach(s => {
+    const tr = el('tr', { class: 'row', onclick: () => open(s.id) }, [
+      el('td', {}, fmt(s.created_at)), el('td', {}, s.name || '(ohne Namen)'), el('td', {}, s.email || ''),
+      el('td', {}, (s.themen || []).join(', ')),
+      el('td', {}, [s.status === 'neu' ? el('span', { class: 'tag neu' }, 'neu') : el('span', { class: 'tag' }, s.status), ' ', s.flagged ? el('span', { class: 'tag flag' }, 'bitte persönlich melden') : null])
+    ]);
+    tb.append(tr);
+  });
+}
+async function open(id) {
+  const r = await api('/rest/v1/submissions?id=eq.' + id + '&select=*'); if (!r.ok) return;
+  const s = (await r.json())[0]; if (!s) return;
+  $('listBox').classList.add('hide'); $('detailBox').classList.remove('hide');
+  const d = $('detail'); d.innerHTML = '';
+  d.append(el('div', { class: 'top no-print' }, [el('h2', {}, s.name || 'Einsendung'), el('div', {}, [
+    el('button', { class: 'btn primary', onclick: () => { document.title = 'Fragebogen ' + (s.name || '') + ' ' + new Date(s.created_at).toISOString().slice(0, 10); window.print(); } }, 'Als PDF drucken'), ' ',
+    el('button', { class: 'btn', onclick: () => setStatus(s, s.status === 'erledigt' ? 'gelesen' : 'erledigt') }, s.status === 'erledigt' ? 'Wieder öffnen' : 'Als erledigt markieren'), ' ',
+    el('button', { class: 'btn danger', onclick: () => del(s) }, 'Löschen')])]));
+  d.append(el('p', { class: 'muted' }, [fmt(s.created_at), ' · ', s.email || '', ' · Einwilligung: ', s.consent_at ? fmt(s.consent_at) : '–']));
+  if (s.flagged) d.append(el('p', { class: 'msg' }, 'Markiert: bitte persönlich melden (Antwort bei den Fragen zu Essverhalten).'));
+  if (s.status === 'neu') setStatus(s, 'gelesen', true);
+  // Antworten, leere Abschnitte weglassen
+  const a = s.answers || []; let box = null, last = null;
+  a.forEach(x => {
+    if (x.t === 'section') { box = el('div', { class: 'sec' }, [el('h2', {}, x.label)]); last = box; return; }
+    if (!box) { box = el('div', { class: 'sec' }); }
+    if (last === box && !box.parentNode) d.append(box);
+    const q = el('div', { class: 'q' }, [el('div', { class: 'l' }, x.label)]);
+    if (x.t === 'list') q.append(el('ul', {}, [].concat(x.value).map(v => el('li', {}, v)))); else q.append(el('div', { class: 'v' }, String(x.value)));
+    box.append(q); if (!box.parentNode) d.append(box);
+  });
+  if ((s.files || []).length) {
+    const fb = el('div', { class: 'sec files no-print' }, [el('h2', {}, 'Hochgeladene Befunde')]); d.append(fb);
+    for (const p of s.files) {
+      const rr = await api('/storage/v1/object/sign/befunde/' + p.split('/').map(encodeURIComponent).join('/'), { method: 'POST', body: JSON.stringify({ expiresIn: 600 }) });
+      if (rr.ok) { const j = await rr.json(); fb.append(el('a', { href: CFG.url + '/storage/v1' + j.signedURL, target: '_blank', rel: 'noopener' }, p.split('/').pop().replace(/^\d+_/, ''))); }
+    }
+  }
+  window.scrollTo(0, 0);
+}
+async function setStatus(s, st, quiet) { await api('/rest/v1/submissions?id=eq.' + s.id, { method: 'PATCH', body: JSON.stringify({ status: st }) }); s.status = st; if (!quiet) open(s.id); }
+async function del(s) {
+  if (!confirm('Diese Einsendung samt Dateien endgültig löschen?')) return;
+  if ((s.files || []).length) await api('/storage/v1/object/befunde', { method: 'DELETE', body: JSON.stringify({ prefixes: s.files }) });
+  const r = await api('/rest/v1/submissions?id=eq.' + s.id, { method: 'DELETE' });
+  if (r.ok) loadList(); else alert('Löschen hat nicht geklappt.');
+}
+start();
+</script>
+</body>
+</html>
