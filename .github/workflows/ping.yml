@@ -8,6 +8,8 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - name: Dateien holen
+        uses: actions/checkout@v4
       - name: Ping
         run: |
           URL=$(node -e "console.log(require('./config.json').url)")
